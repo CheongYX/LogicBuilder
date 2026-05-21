@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    margin: 0;
+    overflow: hidden; 
+    @apply antialiased text-slate-800;
+  }
+}
