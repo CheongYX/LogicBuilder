@@ -72,13 +72,12 @@ export default function Canvas() {
               className={`absolute group canvas-node transition-shadow flex items-center justify-center 
                           ${!isDecision && !isAnnotation ? 'shadow-md hover:shadow-xl' : ''}
                           ${isSelected ? 'ring-4 ring-indigo-400 ring-offset-2 scale-[1.02]' : ''}
-                          ${isDecision ? textClass : ''}`}
+                          ${isDecision ? textClass : ''}
+                          ${!isDecision && !isAnnotation ? shapeDef.css : ''}`} 
               style={{ left: node.position.x, top: node.position.y, zIndex: (draggingNode === node.id || isSelected) ? 50 : 10, minWidth: '120px', minHeight: '60px' }}
               onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ nodeId: node.id, x: e.clientX, y: e.clientY }); }}
               onMouseUp={(e) => {
                 if (drawingEdge || draggingNode) return; 
-                // 💡 核心修复：这里删除了 e.stopPropagation(); 
-                // 这样当你松开鼠标分词后，松手信号就能顺利传递给画布，让画布把所有的框选、拖动状态彻底清空！
                 handleTextSelection(node); 
               }} 
             >

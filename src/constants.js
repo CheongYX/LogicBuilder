@@ -1,8 +1,8 @@
 import { Type, Square, Circle, Diamond, MessageSquare } from 'lucide-react';
 
 export const SHAPES = {
-  TERMINATOR: { id: 'TERMINATOR', name: '起止框', css: 'rounded-full', icon: Circle, desc: 'Start/End' },
-  PROCESS: { id: 'PROCESS', name: '处理框', css: 'rounded-xl', icon: Square, desc: 'Action' },
+  TERMINATOR: { id: 'TERMINATOR', name: '起止框', css: 'rounded-[50%]', icon: Circle, desc: 'Start/End' },
+  PROCESS: { id: 'PROCESS', name: '处理框', css: 'rounded-none', icon: Square, desc: 'Action' },
   DECISION: { id: 'DECISION', name: '判断框', css: '', icon: Diamond, desc: 'Yes/No' },
   ANNOTATION: { id: 'ANNOTATION', name: '注释框', css: '', icon: MessageSquare, desc: 'Note' }
 };
