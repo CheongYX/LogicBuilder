@@ -1,4 +1,3 @@
-// src/context/AppContext.jsx
 import React, { createContext, useState, useRef, useEffect, useCallback } from 'react';
 import { getColorForText } from '../utils/colors.js';
 
@@ -225,7 +224,6 @@ export const AppProvider = ({ children }) => {
     setNodes(newNodes); setEdges(newEdges);
   }, [takeSnapshot]);
 
-  // 💡 核心修复：使用 Ref 代理操作动作，彻底切断重渲染导致的事件撕裂！
   const actionsRef = useRef({});
   useEffect(() => {
     actionsRef.current = { handleUndo, handleRedo, deleteSelected, handleAlignAll, setIsSpaceDown, setIsPanning };
@@ -239,7 +237,6 @@ export const AppProvider = ({ children }) => {
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); actionsRef.current.deleteSelected(); }
       
       if (e.ctrlKey || e.metaKey) {
-        // 自动将按键转为小写，免疫大写锁定的干扰
         const key = e.key.toLowerCase();
         if (key === 'z' && !e.shiftKey) { e.preventDefault(); actionsRef.current.handleUndo(); }
         if (key === 'y' || (key === 'z' && e.shiftKey)) { e.preventDefault(); actionsRef.current.handleRedo(); }
@@ -261,7 +258,7 @@ export const AppProvider = ({ children }) => {
       window.removeEventListener('keydown', handleKeyDown); 
       window.removeEventListener('keyup', handleKeyUp); 
     };
-  }, []); // 👈 关键点：空依赖数组保证了全局键盘监听器只会在启动时注册一次，永不丢失！
+  }, []);
 
   const generateInitialNode = () => {
     if (!textInput.trim()) return;
@@ -271,7 +268,8 @@ export const AppProvider = ({ children }) => {
     const windowWidth = wrapperRef.current ? wrapperRef.current.clientWidth : 800;
     const windowHeight = wrapperRef.current ? wrapperRef.current.clientHeight : 600;
     
-    const textWidth = Math.max(120, textInput.length * 16);
+    const textWidth = Math.min(300, Math.max(120, textInput.length * 16));
+    
     const newNode = {
       id: 'node_' + Date.now(), text: textInput,
       position: { x: scrollX + windowWidth / 2 - (textWidth / 2), y: scrollY + windowHeight / 3 },
@@ -291,47 +289,58 @@ export const AppProvider = ({ children }) => {
     if (startIndex === -1) return;
 
     takeSnapshot();
-    const parts = [
-      fullText.substring(0, startIndex).trim(),
-      text,
-      fullText.substring(startIndex + text.length).trim()
-    ].filter(p => p.length > 0);
+    
+    const prefix = fullText.substring(0, startIndex).trim();
+    const suffix = fullText.substring(startIndex + text.length).trim();
+
+    const parts = [];
+    if (prefix) parts.push({ text: prefix, isSelected: false });
+    parts.push({ text: text, isSelected: true });
+    if (suffix) parts.push({ text: suffix, isSelected: false });
 
     const newNodes = [];
-    const newEdges = [...edgesLatest.current];
+    const internalEdges = [];
     
     let currentX = sourceNode.position.x;
     const yPos = sourceNode.position.y;
 
     parts.forEach((part, index) => {
-      const id = index === parts.indexOf(text) ? sourceNode.id : 'node_' + Date.now() + index;
-      const isSelected = part === text;
-      const widthGuess = Math.max(80, part.length * 16);
+      const id = part.isSelected ? sourceNode.id : 'node_' + Date.now() + '_' + index;
+      const widthGuess = Math.max(80, part.text.length * 16);
       
       newNodes.push({
-        id, text: part, 
+        id,
+        text: part.text, 
         position: { x: currentX, y: yPos },
         shape: sourceNode.shape,
-        color: isSelected ? getColorForText(part) : 'bg-white border-slate-300 text-slate-800'
+        color: part.isSelected ? getColorForText(part.text) : 'bg-white border-slate-300 text-slate-800'
       });
       currentX += widthGuess + 40; 
 
       if (index > 0) {
-        newEdges.push({
-          id: 'edge_' + Date.now() + index, sourceId: newNodes[index - 1].id, targetId: id,
-          sourcePort: 'right', targetPort: 'left', label: '', isDashed: false
+        internalEdges.push({
+          id: 'edge_' + Date.now() + '_' + index,
+          sourceId: newNodes[index - 1].id,
+          targetId: id,
+          sourcePort: 'right', targetPort: 'left',
+          label: '', isDashed: false
         });
       }
     });
 
+    const finalEdges = [];
     edgesLatest.current.forEach(edge => {
-      if (edge.sourceId === sourceNode.id) newEdges.push({ ...edge, sourceId: newNodes[newNodes.length - 1].id });
-      else if (edge.targetId === sourceNode.id) newEdges.push({ ...edge, targetId: newNodes[0].id });
-      else if (!newEdges.find(e => e.id === edge.id)) newEdges.push(edge);
+      if (edge.sourceId === sourceNode.id) {
+        finalEdges.push({ ...edge, sourceId: newNodes[newNodes.length - 1].id });
+      } else if (edge.targetId === sourceNode.id) {
+        finalEdges.push({ ...edge, targetId: newNodes[0].id });
+      } else {
+        finalEdges.push(edge);
+      }
     });
 
     setNodes(prev => [...prev.filter(n => n.id !== sourceNode.id), ...newNodes]);
-    setEdges(newEdges.filter((e, i, a) => a.findIndex(v => v.id === e.id) === i));
+    setEdges([...finalEdges, ...internalEdges]);
     selection.removeAllRanges();
   }, [editingNode, takeSnapshot]);
 
